@@ -1,0 +1,6 @@
+services:
+  bot:
+    build: .
+    container_name: telegram-bot
+    restart: always          # auto-restart if it crashes
+    env_file: .env           # load env vars from .env
