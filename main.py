@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from telegram.request import HTTPXRequest
 from telegram.constants import ChatAction, MediaGroupLimit
 
 from router import SocialRouter
@@ -55,15 +56,27 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         return
 
-    for group in create_media_groups(download_urls):
-        action = ChatAction.UPLOAD_VIDEO if isinstance(group[0], InputMediaVideo) else ChatAction.UPLOAD_PHOTO
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=action)
-        await update.message.reply_media_group(group, reply_to_message_id=update.message.message_id)
+    try:
+        for group in create_media_groups(download_urls):
+            action = ChatAction.UPLOAD_VIDEO if isinstance(group[0], InputMediaVideo) else ChatAction.UPLOAD_PHOTO
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=action)
+            await update.message.reply_media_group(group, reply_to_message_id=update.message.message_id)
+    except Exception as e:
+        await update.message.reply_text(
+            f'⚠️ Couldn\'t handle text "{update.message.text}", error: {e}',
+            reply_to_message_id=update.message.message_id
+        )
+        raise e
     return
 
 def main():
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    request = HTTPXRequest(
+        media_write_timeout=1000.0
+    )
+
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).request(request).build()
     app.add_handler(MessageHandler(filters.TEXT, handle_text))
+    print("Starting bot")
     app.run_polling()
 
 if __name__ == '__main__':
